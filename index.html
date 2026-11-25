@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FABP – Free All Bluetooth Printers</title>
+<style>
+/* VOICE: ruhig, praktisch
+   IDEA: ein Thermopapier-Streifen, der aus dem Drucker kommt
+   PICTURE: die gerasterte Vorschau als Papierstreifen mit Zackenrand
+   COLOUR and TYPE: Papierweiß, Tinte schwarz, Akzent Pastellblau wie das Gerät
+   LAYOUT: eine Spalte: Verbinden, Bild, Vorschau, Drucken */
+:root{color-scheme:light dark;--bg:light-dark(#eef3f8,#12161b);--card:light-dark(#fff,#1c232b);--ink:light-dark(#111,#eef2f6);--mut:light-dark(#5b6672,#9aa6b2);--acc:#6f9fd8;--acc2:light-dark(#dbe8f7,#24364b);--ok:#1f9d55;--err:#d23b3b}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif}
+main{max-width:560px;margin:0 auto;padding:16px 16px 60px}
+.top{display:flex;justify-content:flex-end}
+.top select{width:auto;min-width:150px}
+h1{font-size:32px;line-height:1.05;margin:10px 0 4px}
+.tag{font-weight:600;color:var(--acc);margin:0 0 2px;letter-spacing:.01em}
+.sub{color:var(--mut);margin:0 0 18px}
+.card{background:var(--card);border-radius:16px;padding:16px;margin:0 0 14px;box-shadow:0 1px 3px #0001}
+.card h2{font-size:17px;margin:0 0 10px}
+button,.btn{appearance:none;border:0;border-radius:12px;min-height:46px;padding:0 18px;font:600 16px system-ui,sans-serif;cursor:pointer;background:var(--acc2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;gap:8px}
+button.pri{background:var(--acc);color:#fff}
+button.stop{background:var(--err);color:#fff}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,input:focus-visible,select:focus-visible,.btn:focus-within{outline:3px solid var(--acc);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.grow{flex:1}
+#st{font-size:14px;color:var(--mut)}
+#st b{color:var(--ink)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--mut);display:inline-block;vertical-align:middle;margin-inline-end:6px}
+.dot.on{background:var(--ok)}
+input[type=file]{display:none}
+label.f{display:grid;grid-template-columns:8em minmax(0,1fr) 3em;gap:10px;align-items:center;margin:8px 0;font-size:15px}
+label.f output{text-align:end;font-variant-numeric:tabular-nums;color:var(--mut)}
+input[type=range]{width:100%;accent-color:var(--acc);height:32px}
+input[type=number]{font-size:16px;min-height:40px;border-radius:10px;border:1px solid var(--acc2);background:var(--card);color:var(--ink);padding:0 10px;width:100%}
+select{font-size:16px;min-height:40px;border-radius:10px;border:1px solid var(--acc2);background:var(--card);color:var(--ink);padding:0 8px;width:100%}
+.chk{display:flex;gap:8px;align-items:center;font-size:15px;min-height:40px}
+.chk input{width:20px;height:20px;accent-color:var(--acc)}
+.hint{font-size:13px;color:var(--mut);margin:-4px 0 6px}
+#endBox{border-inline-start:3px solid var(--acc);padding-inline-start:12px;margin:4px 0 6px}
+.paper{background:#fff;margin:6px auto 0;max-width:384px;padding:14px 0 18px;position:relative;filter:drop-shadow(0 3px 6px #0002)}
+.paper::after{content:"";position:absolute;left:0;right:0;bottom:-8px;height:8px;background:linear-gradient(135deg,#fff 50%,transparent 50%) 0 0/12px 8px,linear-gradient(225deg,#fff 50%,transparent 50%) 0 0/12px 8px}
+.paper.long{max-height:65vh;overflow-y:auto;filter:none;box-shadow:0 3px 8px #0002}
+.paper.long::after{display:none}
+#cv{display:block;width:100%;image-rendering:pixelated}
+.empty{color:#888;text-align:center;padding:50px 16px;font-size:15px}
+#sz{text-align:center;font-size:14px;color:var(--mut);margin:14px 0 0;font-variant-numeric:tabular-nums}
+progress{width:100%;height:10px;accent-color:var(--acc);margin-top:10px}
+#log{font:13px/1.4 ui-monospace,monospace;color:var(--mut);white-space:pre-wrap;max-height:120px;overflow:auto;margin:8px 0 0;direction:ltr;text-align:left}
+.warn{background:#fff3cd;color:#5c4400;border-radius:12px;padding:12px;font-size:14px;margin:0 0 14px}
+details summary{cursor:pointer;font-weight:600;min-height:36px;display:flex;align-items:center}
+@media(prefers-reduced-motion:no-preference){.paper.go{animation:out .6s ease-out}@keyframes out{from{transform:translateY(-14px);opacity:.4}}}
+</style>
+</head>
+<body>
+<main>
+<div class="top"><select id="lang" aria-label="Language">
+<option value="en">English</option><option value="de">Deutsch</option><option value="es">Español</option><option value="fr">Français</option><option value="it">Italiano</option><option value="pt">Português</option><option value="ru">Русский</option><option value="zh">中文</option><option value="ja">日本語</option><option value="ar">العربية</option>
+</select></div>
+<h1 data-i="title"></h1>
+<p class="tag">Free All Bluetooth Printers</p>
+<p class="sub" data-i="sub"></p>
+<div id="nobt" class="warn" data-i="nobt" hidden></div>
+
+<section class="card">
+<h2 data-i="h1c"></h2>
+<div class="row">
+<button id="bCon" class="pri"></button>
+<span id="st" class="grow"><span id="dot" class="dot"></span><span id="stt"></span> <b id="stn"></b></span>
+</div>
+</section>
+
+<section class="card">
+<h2 data-i="h2"></h2>
+<div class="row">
+<label class="btn" for="file" data-i="pick" tabindex="0"></label>
+<input id="file" type="file" accept="image/*">
+<button id="bRot" data-i="rot"></button>
+</div>
+<label class="f"><span data-i="br"></span><input id="br" type="range" min="-100" max="100" value="20"><output id="obr">20</output></label>
+<label class="f"><span data-i="ct"></span><input id="ct" type="range" min="-100" max="100" value="10"><output id="oct">10</output></label>
+<label class="f"><span data-i="dm"></span><select id="dm"><option value="fs" data-i="fs"></option><option value="at" data-i="at"></option><option value="th" data-i="th"></option></select><span></span></label>
+<label class="chk"><input id="inv" type="checkbox"> <span data-i="inv"></span></label>
+<label class="chk"><input id="endless" type="checkbox"> <b data-i="end"></b></label>
+<div id="endBox" hidden>
+<label class="f"><span data-i="len"></span><input id="len" type="number" min="0" max="400" step="1" value="0" inputmode="numeric"><span>cm</span></label>
+<p class="hint" data-i="lenh"></p>
+</div>
+</section>
+
+<section class="card">
+<h2 data-i="h3"></h2>
+<div id="paper" class="paper" dir="ltr"><canvas id="cv" width="384" height="0"></canvas><div id="empty" class="empty" data-i="emp"></div></div>
+<p id="sz" hidden></p>
+</section>
+
+<section class="card">
+<h2 data-i="h4"></h2>
+<label class="f"><span data-i="en"></span><input id="en" type="range" min="5" max="70" value="25"><output id="oen">25</output></label>
+<label class="f"><span data-i="cp"></span><input id="cp" type="range" min="1" max="10" value="1"><output id="ocp">1</output></label>
+<div class="row"><button id="bPr" class="pri grow" disabled></button><button id="bFeed" data-i="feed" disabled></button></div>
+<progress id="pg" value="0" max="1" hidden></progress>
+<details><summary data-i="adv"></summary>
+<label class="f"><span data-i="pw"></span><select id="pw"><option value="384">384 (X6, 58 mm)</option><option value="576">576 (80 mm)</option></select><span></span></label>
+<label class="f"><span data-i="sp"></span><input id="sp" type="range" min="10" max="60" value="32"><output id="osp">32</output></label>
+<label class="f"><span data-i="dl"></span><input id="dl" type="range" min="0" max="40" value="8"><output id="odl">8</output></label>
+<label class="f"><span data-i="ck"></span><input id="ck" type="range" min="20" max="240" step="4" value="120"><output id="ock">120</output></label>
+<p class="hint" data-i="help"></p>
+<div id="log"></div>
+</details>
+</section>
+</main>
+<script>
+{
+const L={
+en:{title:"FABP",sub:"Print images directly via Bluetooth – no app needed.",nobt:"This browser has no Web Bluetooth. Please use Chrome or Edge (Android/Windows/Mac). On iPhone only the “Bluefy” app works.",h1c:"1. Connect printer",con:"Connect",dis:"Disconnect",nc:"not connected",cd:"connected:",cing:"connecting …",cf:"Connection failed – is it the right printer?",h2:"2. Choose image",pick:"Choose image",rot:"Rotate ↻",br:"Brightness",ct:"Contrast",dm:"Dithering",fs:"Photo (Floyd-Steinberg)",at:"Photo light (Atkinson)",th:"Black/white (text, logos)",inv:"Invert",end:"Endless mode (long banner)",len:"Length",lenh:"0 = automatic (image fills the paper width). The long side of the image runs along the paper, up to 400 cm.",h3:"3. Preview",emp:"No image chosen yet",sz:"Print length ≈ {n} cm",h4:"4. Print",en:"Darkness",cp:"Copies",pr:"Print",stop:"Stop",feed:"Feed paper",adv:"Advanced",pw:"Width (px)",sp:"Speed",dl:"Pause (ms)",ck:"Packet size",help:"Speed: lower = faster. If the printer stalls or lines are missing: raise the pause and set packet size to 20."},
+de:{title:"FABP",sub:"Bilder direkt per Bluetooth drucken – ohne App.",nobt:"Dieser Browser kann kein Web-Bluetooth. Bitte Chrome oder Edge nutzen (Android/Windows/Mac). Auf dem iPhone geht es nur mit der App „Bluefy“.",h1c:"1. Drucker verbinden",con:"Verbinden",dis:"Trennen",nc:"nicht verbunden",cd:"verbunden:",cing:"verbinde …",cf:"Verbindung fehlgeschlagen – ist es der richtige Drucker?",h2:"2. Bild wählen",pick:"Bild auswählen",rot:"Drehen ↻",br:"Helligkeit",ct:"Kontrast",dm:"Raster",fs:"Foto (Floyd-Steinberg)",at:"Foto hell (Atkinson)",th:"Schwarz/Weiß (Text, Logos)",inv:"Invertieren",end:"Endlos-Modus (langes Banner)",len:"Länge",lenh:"0 = automatisch (Bild füllt die Papierbreite). Die lange Bildseite läuft entlang des Papiers, bis 400 cm.",h3:"3. Vorschau",emp:"Noch kein Bild gewählt",sz:"Drucklänge ≈ {n} cm",h4:"4. Drucken",en:"Schwärze",cp:"Anzahl",pr:"Drucken",stop:"Stopp",feed:"Papier vor",adv:"Erweitert",pw:"Breite (px)",sp:"Tempo",dl:"Pause (ms)",ck:"Paketgröße",help:"Tempo: kleiner = schneller. Wenn der Drucker hängt oder Streifen fehlen: Pause erhöhen und Paketgröße auf 20 senken."},
+es:{title:"FABP",sub:"Imprime imágenes directamente por Bluetooth, sin app.",nobt:"Este navegador no tiene Web Bluetooth. Usa Chrome o Edge (Android/Windows/Mac). En iPhone solo funciona con la app «Bluefy».",h1c:"1. Conectar impresora",con:"Conectar",dis:"Desconectar",nc:"no conectada",cd:"conectada:",cing:"conectando …",cf:"Error de conexión: ¿es la impresora correcta?",h2:"2. Elegir imagen",pick:"Elegir imagen",rot:"Girar ↻",br:"Brillo",ct:"Contraste",dm:"Tramado",fs:"Foto (Floyd-Steinberg)",at:"Foto clara (Atkinson)",th:"Blanco/negro (texto, logos)",inv:"Invertir",end:"Modo continuo (pancarta larga)",len:"Longitud",lenh:"0 = automático (la imagen llena el ancho del papel). El lado largo de la imagen va a lo largo del papel, hasta 400 cm.",h3:"3. Vista previa",emp:"Aún no hay imagen",sz:"Longitud ≈ {n} cm",h4:"4. Imprimir",en:"Oscuridad",cp:"Copias",pr:"Imprimir",stop:"Detener",feed:"Avanzar papel",adv:"Avanzado",pw:"Ancho (px)",sp:"Velocidad",dl:"Pausa (ms)",ck:"Tamaño de paquete",help:"Velocidad: menor = más rápido. Si la impresora se atasca o faltan líneas: aumenta la pausa y pon el tamaño de paquete en 20."},
+fr:{title:"FABP",sub:"Imprimez des images directement en Bluetooth, sans appli.",nobt:"Ce navigateur ne prend pas en charge Web Bluetooth. Utilisez Chrome ou Edge (Android/Windows/Mac). Sur iPhone, seule l’app « Bluefy » fonctionne.",h1c:"1. Connecter l’imprimante",con:"Connecter",dis:"Déconnecter",nc:"non connectée",cd:"connectée :",cing:"connexion …",cf:"Échec de connexion – est-ce la bonne imprimante ?",h2:"2. Choisir une image",pick:"Choisir une image",rot:"Pivoter ↻",br:"Luminosité",ct:"Contraste",dm:"Tramage",fs:"Photo (Floyd-Steinberg)",at:"Photo claire (Atkinson)",th:"Noir/blanc (texte, logos)",inv:"Inverser",end:"Mode continu (longue bannière)",len:"Longueur",lenh:"0 = automatique (l’image remplit la largeur du papier). Le grand côté de l’image suit le papier, jusqu’à 400 cm.",h3:"3. Aperçu",emp:"Aucune image choisie",sz:"Longueur ≈ {n} cm",h4:"4. Imprimer",en:"Noirceur",cp:"Copies",pr:"Imprimer",stop:"Arrêter",feed:"Avancer le papier",adv:"Avancé",pw:"Largeur (px)",sp:"Vitesse",dl:"Pause (ms)",ck:"Taille de paquet",help:"Vitesse : plus bas = plus rapide. Si l’imprimante bloque ou si des lignes manquent : augmentez la pause et réglez la taille de paquet sur 20."},
+it:{title:"FABP",sub:"Stampa immagini direttamente via Bluetooth, senza app.",nobt:"Questo browser non supporta Web Bluetooth. Usa Chrome o Edge (Android/Windows/Mac). Su iPhone funziona solo con l’app «Bluefy».",h1c:"1. Collega la stampante",con:"Collega",dis:"Scollega",nc:"non collegata",cd:"collegata:",cing:"collegamento …",cf:"Connessione non riuscita – è la stampante giusta?",h2:"2. Scegli immagine",pick:"Scegli immagine",rot:"Ruota ↻",br:"Luminosità",ct:"Contrasto",dm:"Retinatura",fs:"Foto (Floyd-Steinberg)",at:"Foto chiara (Atkinson)",th:"Bianco/nero (testo, loghi)",inv:"Inverti",end:"Modalità continua (striscione lungo)",len:"Lunghezza",lenh:"0 = automatico (l’immagine riempie la larghezza della carta). Il lato lungo dell’immagine segue la carta, fino a 400 cm.",h3:"3. Anteprima",emp:"Nessuna immagine scelta",sz:"Lunghezza ≈ {n} cm",h4:"4. Stampa",en:"Intensità",cp:"Copie",pr:"Stampa",stop:"Ferma",feed:"Avanza carta",adv:"Avanzate",pw:"Larghezza (px)",sp:"Velocità",dl:"Pausa (ms)",ck:"Dimensione pacchetto",help:"Velocità: più basso = più veloce. Se la stampante si blocca o mancano righe: aumenta la pausa e imposta la dimensione pacchetto a 20."},
+pt:{title:"FABP",sub:"Imprima imagens diretamente via Bluetooth, sem app.",nobt:"Este navegador não suporta Web Bluetooth. Use Chrome ou Edge (Android/Windows/Mac). No iPhone só funciona com o app “Bluefy”.",h1c:"1. Conectar impressora",con:"Conectar",dis:"Desconectar",nc:"não conectada",cd:"conectada:",cing:"conectando …",cf:"Falha na conexão – é a impressora certa?",h2:"2. Escolher imagem",pick:"Escolher imagem",rot:"Girar ↻",br:"Brilho",ct:"Contraste",dm:"Pontilhado",fs:"Foto (Floyd-Steinberg)",at:"Foto clara (Atkinson)",th:"Preto/branco (texto, logos)",inv:"Inverter",end:"Modo contínuo (faixa longa)",len:"Comprimento",lenh:"0 = automático (a imagem preenche a largura do papel). O lado maior da imagem segue o papel, até 400 cm.",h3:"3. Pré-visualização",emp:"Nenhuma imagem escolhida",sz:"Comprimento ≈ {n} cm",h4:"4. Imprimir",en:"Escuridão",cp:"Cópias",pr:"Imprimir",stop:"Parar",feed:"Avançar papel",adv:"Avançado",pw:"Largura (px)",sp:"Velocidade",dl:"Pausa (ms)",ck:"Tamanho do pacote",help:"Velocidade: menor = mais rápido. Se a impressora travar ou faltarem linhas: aumente a pausa e defina o tamanho do pacote para 20."},
+ru:{title:"FABP",sub:"Печать изображений напрямую по Bluetooth — без приложения.",nobt:"Этот браузер не поддерживает Web Bluetooth. Используйте Chrome или Edge (Android/Windows/Mac). На iPhone работает только приложение «Bluefy».",h1c:"1. Подключить принтер",con:"Подключить",dis:"Отключить",nc:"не подключён",cd:"подключён:",cing:"подключение …",cf:"Ошибка подключения — это нужный принтер?",h2:"2. Выбрать изображение",pick:"Выбрать изображение",rot:"Повернуть ↻",br:"Яркость",ct:"Контраст",dm:"Растр",fs:"Фото (Флойд–Штейнберг)",at:"Светлое фото (Аткинсон)",th:"Ч/б (текст, логотипы)",inv:"Инвертировать",end:"Бесконечный режим (длинный баннер)",len:"Длина",lenh:"0 = авто (изображение по ширине бумаги). Длинная сторона изображения идёт вдоль бумаги, до 400 см.",h3:"3. Предпросмотр",emp:"Изображение не выбрано",sz:"Длина печати ≈ {n} см",h4:"4. Печать",en:"Насыщенность",cp:"Копии",pr:"Печать",stop:"Стоп",feed:"Подать бумагу",adv:"Дополнительно",pw:"Ширина (px)",sp:"Скорость",dl:"Пауза (мс)",ck:"Размер пакета",help:"Скорость: меньше = быстрее. Если принтер зависает или пропадают строки: увеличьте паузу и уменьшите размер пакета до 20."},
+zh:{title:"FABP",sub:"通过蓝牙直接打印图片，无需 App。",nobt:"此浏览器不支持 Web Bluetooth。请使用 Chrome 或 Edge（Android/Windows/Mac）。iPhone 上只能使用 “Bluefy” 应用。",h1c:"1. 连接打印机",con:"连接",dis:"断开",nc:"未连接",cd:"已连接：",cing:"正在连接 …",cf:"连接失败——是正确的打印机吗？",h2:"2. 选择图片",pick:"选择图片",rot:"旋转 ↻",br:"亮度",ct:"对比度",dm:"抖动",fs:"照片（Floyd-Steinberg）",at:"浅色照片（Atkinson）",th:"黑白（文字、标志）",inv:"反色",end:"连续模式（长横幅）",len:"长度",lenh:"0 = 自动（图片填满纸宽）。图片长边沿纸张方向打印，最长 400 厘米。",h3:"3. 预览",emp:"尚未选择图片",sz:"打印长度 ≈ {n} 厘米",h4:"4. 打印",en:"浓度",cp:"份数",pr:"打印",stop:"停止",feed:"走纸",adv:"高级",pw:"宽度（像素）",sp:"速度",dl:"间隔（毫秒）",ck:"数据包大小",help:"速度：数值越小越快。如果打印机卡住或缺行：增大间隔并将数据包大小设为 20。"},
+ja:{title:"FABP",sub:"アプリなしで Bluetooth から画像を直接印刷。",nobt:"このブラウザは Web Bluetooth に対応していません。Chrome または Edge（Android/Windows/Mac）を使ってください。iPhone では「Bluefy」アプリのみ対応です。",h1c:"1. プリンターに接続",con:"接続",dis:"切断",nc:"未接続",cd:"接続済み：",cing:"接続中 …",cf:"接続に失敗しました。正しいプリンターですか？",h2:"2. 画像を選択",pick:"画像を選択",rot:"回転 ↻",br:"明るさ",ct:"コントラスト",dm:"ディザリング",fs:"写真（Floyd-Steinberg）",at:"明るい写真（Atkinson）",th:"白黒（文字・ロゴ）",inv:"反転",end:"エンドレスモード（長いバナー）",len:"長さ",lenh:"0 = 自動（画像を用紙幅に合わせる）。画像の長辺が用紙に沿って印刷されます（最大 400 cm）。",h3:"3. プレビュー",emp:"画像が選択されていません",sz:"印刷の長さ ≈ {n} cm",h4:"4. 印刷",en:"濃さ",cp:"部数",pr:"印刷",stop:"停止",feed:"紙送り",adv:"詳細設定",pw:"幅（px）",sp:"速度",dl:"間隔（ms）",ck:"パケットサイズ",help:"速度：小さいほど速い。プリンターが止まる・線が抜ける場合は、間隔を増やしパケットサイズを 20 にしてください。"},
+ar:{title:"FABP",sub:"اطبع الصور مباشرة عبر البلوتوث – بدون تطبيق.",nobt:"هذا المتصفح لا يدعم Web Bluetooth. استخدم Chrome أو Edge (Android/Windows/Mac). على iPhone يعمل فقط تطبيق “Bluefy”.",h1c:"1. توصيل الطابعة",con:"اتصال",dis:"قطع الاتصال",nc:"غير متصلة",cd:"متصلة:",cing:"جارٍ الاتصال …",cf:"فشل الاتصال – هل هذه الطابعة الصحيحة؟",h2:"2. اختيار صورة",pick:"اختيار صورة",rot:"تدوير ↻",br:"السطوع",ct:"التباين",dm:"التنقيط",fs:"صورة (Floyd-Steinberg)",at:"صورة فاتحة (Atkinson)",th:"أبيض/أسود (نص، شعارات)",inv:"عكس الألوان",end:"الوضع المستمر (لافتة طويلة)",len:"الطول",lenh:"0 = تلقائي (الصورة تملأ عرض الورق). الجانب الطويل للصورة يمتد على طول الورق، حتى 400 سم.",h3:"3. معاينة",emp:"لم يتم اختيار صورة",sz:"طول الطباعة ≈ {n} سم",h4:"4. طباعة",en:"الدكانة",cp:"النسخ",pr:"طباعة",stop:"إيقاف",feed:"تقديم الورق",adv:"متقدم",pw:"العرض (px)",sp:"السرعة",dl:"الإيقاف المؤقت (ms)",ck:"حجم الحزمة",help:"السرعة: الأقل = الأسرع. إذا توقفت الطابعة أو نقصت خطوط: زد الإيقاف المؤقت واضبط حجم الحزمة على 20."}
+};
+const $=id=>document.getElementById(id);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const MAXPX=32000; // Canvas-Grenze im Browser ≈ 400 cm
+let t=L.en,conSt='nc',img=null,rot=0,bits=null,H=0,dev=null,ch=null,wnr=false,paused=false,busy=false,cancel=false;
+const W=()=>+$('pw').value;
+const endless=()=>$('endless').checked;
+const log=s=>{const l=$('log');l.textContent+=s+'\n';l.scrollTop=1e9};
+
+/* ---- Sprache ---- */
+function setLang(k){
+  t=L[k]||L.en;$('lang').value=L[k]?k:'en';
+  document.documentElement.lang=$('lang').value;
+  document.documentElement.dir=$('lang').value==='ar'?'rtl':'ltr';
+  document.title='FABP – Free All Bluetooth Printers';
+  for(const el of document.querySelectorAll('[data-i]'))el.textContent=t[el.dataset.i];
+  try{localStorage.setItem('fabp-lang',$('lang').value)}catch{}
+  ui();
+}
+function ui(){
+  const on=!!dev?.gatt?.connected&&!!ch;
+  $('dot').className='dot'+(on?' on':'');
+  $('stt').textContent=t[conSt];
+  $('stn').textContent=on?(dev.name||''):'';
+  $('bCon').textContent=on?t.dis:t.con;
+  $('bFeed').disabled=!on||busy;
+  $('bPr').disabled=!(ch&&bits);
+  $('bPr').textContent=busy?t.stop:t.pr;
+  $('bPr').className=(busy?'stop':'pri')+' grow';
+  $('sz').hidden=!bits;
+  if(bits)$('sz').textContent=t.sz.replace('{n}',(H/80).toFixed(1));
+}
+if(!navigator.bluetooth)$('nobt').hidden=false;
+
+/* ---- Protokoll ("Cat Printer", z. B. Mafiti X6 / Tiny Print) ---- */
+const T=new Uint8Array(256);
+for(let i=0;i<256;i++){let c=i;for(let j=0;j<8;j++)c=c&0x80?((c<<1)^0x07)&255:(c<<1)&255;T[i]=c}
+const crc=d=>{let c=0;for(const b of d)c=T[(c^b)&255];return c};
+const le16=v=>[v&255,(v>>8)&255];
+function pkt(cmd,data){
+  const d=Uint8Array.from(data),p=new Uint8Array(d.length+8);
+  p[0]=0x51;p[1]=0x78;p[2]=cmd;p[3]=0;p[4]=d.length&255;p[5]=d.length>>8;
+  p.set(d,6);p[6+d.length]=crc(d);p[7+d.length]=0xff;return p;
+}
+const C={
+  state:()=>pkt(0xa3,[0]),dpi200:()=>pkt(0xa4,[50]),speed:v=>pkt(0xbd,[v]),
+  energy:v=>pkt(0xaf,le16(v)),apply:()=>pkt(0xbe,[1]),update:()=>pkt(0xa9,[0]),
+  latStart:()=>pkt(0xa6,[0xaa,0x55,0x17,0x38,0x44,0x5f,0x5f,0x5f,0x44,0x38,0x2c]),
+  latEnd:()=>pkt(0xa6,[0xaa,0x55,0x17,0,0,0,0,0,0,0,0x17]),
+  feed:n=>pkt(0xa1,le16(n)),line:b=>pkt(0xa2,b)
+};
+const join=arr=>{let n=0;for(const a of arr)n+=a.length;const o=new Uint8Array(n);let i=0;for(const a of arr){o.set(a,i);i+=a.length}return o};
+
+/* ---- Verbinden ---- */
+async function connect(){
+  if(dev?.gatt?.connected){dev.gatt.disconnect();return}
+  if(!navigator.bluetooth){$('nobt').hidden=false;return}
+  try{
+    dev=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:[0xae30,0xaf30]});
+    dev.addEventListener('gattserverdisconnected',()=>{ch=null;conSt='nc';cancel=true;ui();log('Disconnected')});
+    conSt='cing';ui();
+    const g=await dev.gatt.connect();
+    let s;try{s=await g.getPrimaryService(0xae30)}catch{s=await g.getPrimaryService(0xaf30)}
+    ch=await s.getCharacteristic(0xae01);
+    wnr=!!ch.properties.writeWithoutResponse;
+    try{
+      const n=await s.getCharacteristic(0xae02);await n.startNotifications();
+      n.addEventListener('characteristicvaluechanged',e=>{
+        const v=new Uint8Array(e.target.value.buffer);
+        if(v[2]===0xae){paused=v[6]===0x10}
+        else if(v[2]===0xa3&&v[6])log('Status: '+v[6]+(v[6]&1?' (no paper?)':'')+(v[6]&2?' (lid open?)':'')+(v[6]&4?' (overheat?)':''));
+      });
+    }catch{log('No notifications')}
+    conSt='cd';ui();log('Connected: '+(dev.name||'device'));
+    await send(C.state());
+  }catch(e){
+    ch=null;conSt=(/cancel/i.test(e.message)||e.name==='NotFoundError')?'nc':'cf';ui();log('Error: '+e.message);
+  }
+}
+async function send(bytes){
+  const cs=+$('ck').value,dl=+$('dl').value;
+  for(let o=0;o<bytes.length;o+=cs){
+    while(paused&&ch)await sleep(30);
+    if(!ch)throw new Error('not connected');
+    const part=bytes.subarray(o,o+cs);
+    if(wnr)await ch.writeValueWithoutResponse(part);else await ch.writeValue(part);
+    if(dl)await sleep(dl);
+  }
+}
+
+/* ---- Bild aufbereiten ---- */
+function autoRot(){if(img)rot=endless()?(img.width>img.height?90:0):(img.width>img.height*1.2?90:0)}
+function render(){
+  const w=W(),c=$('cv'),x=c.getContext('2d',{willReadFrequently:true});
+  $('paper').classList.toggle('long',endless());
+  if(!img){c.height=0;bits=null;$('empty').hidden=false;ui();return}
+  $('empty').hidden=true;
+  const r=rot%180!==0,iw=r?img.height:img.width,ih=r?img.width:img.height;
+  let s=w/iw;
+  const lenPx=Math.min(MAXPX,Math.max(0,+$('len').value||0)*80); // 8 px/mm
+  if(endless()&&lenPx)s=Math.min(lenPx/ih,w/iw);
+  if(ih*s>MAXPX)s=MAXPX/ih;
+  const h=Math.max(1,Math.round(ih*s));
+  c.width=w;c.height=h;
+  x.fillStyle='#fff';x.fillRect(0,0,w,h);
+  x.imageSmoothingQuality='high';
+  x.save();x.translate(w/2,h/2);x.rotate(rot*Math.PI/180);x.scale(s,s);x.drawImage(img,-img.width/2,-img.height/2);x.restore();
+  const id=x.getImageData(0,0,w,h),p=id.data,g=new Float32Array(w*h);
+  const b=+$('br').value*1.28,k0=+$('ct').value*1.28,k=(259*(k0+255))/(255*(259-k0)),inv=$('inv').checked;
+  for(let i=0;i<w*h;i++){
+    const a=p[i*4+3]/255;let l=0.299*p[i*4]+0.587*p[i*4+1]+0.114*p[i*4+2];
+    l=255-(255-l)*a;l=(l-128)*k+128+b;if(inv)l=255-l;g[i]=l;
+  }
+  const m=$('dm').value;bits=new Uint8Array(w*h);
+  const add=(xx,yy,v)=>{if(xx>=0&&xx<w&&yy<h)g[yy*w+xx]+=v};
+  for(let y=0;y<h;y++)for(let xx=0;xx<w;xx++){
+    const i=y*w+xx,o=g[i],n=o<128?0:255,e=o-n;bits[i]=n?0:1;
+    if(m==='fs'){add(xx+1,y,e*7/16);add(xx-1,y+1,e*3/16);add(xx,y+1,e*5/16);add(xx+1,y+1,e/16)}
+    else if(m==='at'){const f=e/8;add(xx+1,y,f);add(xx+2,y,f);add(xx-1,y+1,f);add(xx,y+1,f);add(xx+1,y+1,f);add(xx,y+2,f)}
+  }
+  for(let i=0;i<w*h;i++){const v=bits[i]?0:255;p[i*4]=p[i*4+1]=p[i*4+2]=v;p[i*4+3]=255}
+  x.putImageData(id,0,0);H=h;ui();
+}
+
+/* ---- Drucken (gestreamt, auch für sehr lange Banner) ---- */
+function lineAt(y,w){
+  const line=new Uint8Array(w/8),o=y*w;
+  for(let xx=0;xx<w;xx++)if(bits[o+xx])line[xx>>3]|=1<<(xx&7); // LSB = linkes Pixel
+  return C.line(line);
+}
+async function print(){
+  if(busy){cancel=true;return}
+  if(!ch||!bits)return;
+  busy=true;cancel=false;ui();
+  const pg=$('pg');pg.hidden=false;pg.value=0;
+  const w=W(),copies=+$('cp').value,en=Math.round(+$('en').value/100*0xffff),end=endless(),BATCH=32;
+  const head=()=>join([C.state(),C.dpi200(),C.speed(+$('sp').value),C.energy(en),C.apply(),C.update(),C.latStart()]);
+  const foot=()=>join([C.latEnd(),C.speed(8),C.feed(90),C.state()]);
+  let open=false;
+  try{
+    for(let n=0;n<copies&&!cancel;n++){
+      if(!open){await send(head());open=true}
+      log(`Printing ${n+1}/${copies} (${(H/80).toFixed(1)} cm)`);
+      for(let y=0;y<H&&!cancel;y+=BATCH){
+        const parts=[];for(let yy=y;yy<Math.min(H,y+BATCH);yy++)parts.push(lineAt(yy,w));
+        await send(join(parts));
+        pg.value=(n*H+Math.min(H,y+BATCH))/(copies*H);
+      }
+      if(!end||n===copies-1){await send(foot());open=false}
+    }
+    if(open&&ch)await send(foot());
+    log(cancel?'Stopped':'Done');
+    $('paper').classList.remove('go');void $('paper').offsetWidth;$('paper').classList.add('go');
+  }catch(e){log('Print error: '+e.message)}
+  busy=false;pg.hidden=true;ui();
+}
+
+/* ---- Bedienung ---- */
+$('lang').onchange=e=>setLang(e.target.value);
+$('bCon').onclick=connect;
+$('bPr').onclick=print;
+$('bFeed').onclick=()=>send(join([C.speed(8),C.feed(60)])).catch(e=>log(e.message));
+$('bRot').onclick=()=>{rot=(rot+(endless()?180:90))%360;render()};
+$('file').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const u=URL.createObjectURL(f),i=new Image();
+  i.onload=()=>{img=i;autoRot();render()};
+  i.onerror=()=>log('Could not load image');i.src=u;
+};
+document.querySelector('label[for=file]').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('file').click()}};
+$('endless').onchange=()=>{$('endBox').hidden=!endless();autoRot();render()};
+let lt;$('len').oninput=()=>{clearTimeout(lt);lt=setTimeout(render,400)};
+for(const [id,re] of [['br',1],['ct',1],['en',0],['cp',0],['sp',0],['dl',0],['ck',0]]){
+  const el=$(id),o=$('o'+id);el.oninput=()=>{o.textContent=el.value;if(re)render()};
+}
+$('dm').onchange=render;$('inv').onchange=render;$('pw').onchange=render;
+let saved=null;try{saved=localStorage.getItem('fabp-lang')}catch{}
+setLang(saved||'en');
+}
+</script>
+</body>
+</html>

@@ -24,4 +24,6 @@
 
 ---
 
+☕ If FABP helped you, feel free to [buy me a coffee via PayPal](https://www.paypal.me/pedapedapeda).
+
 Protocol based on the public reverse-engineering work of the “cat printer” community (e.g. [NaitLee/Cat-Printer](https://github.com/NaitLee/Cat-Printer)).

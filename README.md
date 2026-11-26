@@ -24,6 +24,35 @@
 
 ---
 
+## 🐧 Linux version (native app)
+
+The web page also runs in Chrome on Linux, but there Web Bluetooth is often turned off. The native Linux app in [`linux/`](linux/) works without a browser, with a window and a command line.
+
+**Install** (once):
+
+```bash
+git clone https://github.com/PedaPeda/FABP.git
+cd FABP/linux
+./install.sh
+```
+
+Needs Python 3.9+, BlueZ (normal Linux Bluetooth) and tkinter (`sudo apt install python3-tk python3-venv` on Debian/Ubuntu/Mint).
+
+**Use:** start **FABP** from the app menu, or in a terminal:
+
+```bash
+fabp                                  # open the window
+fabp --scan                           # list printers nearby
+fabp photo.jpg                        # print an image
+fabp banner.png --endless --length 200    # 2 m banner
+fabp photo.jpg --darkness 35 --dither at --copies 2
+fabp --help                           # all options
+```
+
+Don't pair the printer in the system Bluetooth settings and close the phone app, so the printer is free.
+
+---
+
 ☕ If FABP helped you, feel free to [buy me a coffee via PayPal](https://www.paypal.me/pedapedapeda).
 
 Protocol based on the public reverse-engineering work of the “cat printer” community (e.g. [NaitLee/Cat-Printer](https://github.com/NaitLee/Cat-Printer)).
